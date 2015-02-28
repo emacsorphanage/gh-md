@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24") (cl-lib "0.5") (markdown-mode "2.0"))
+;; Package-Requires: ((emacs "24") (markdown-mode "2.0"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -41,8 +41,6 @@
 ;;; Code:
 
 
-(eval-when-compile (require 'cl))
-
 (require 'json)
 (require 'shr)
 (require 'url)
