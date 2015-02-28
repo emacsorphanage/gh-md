@@ -14,7 +14,7 @@ OBJS = $(SRCS:.el=.elc)
 
 .PHONY: all build package test clean
 
-all: compile README.md
+all: build README.md
 
 build: $(PKGDIR)
 	$(CASK) build

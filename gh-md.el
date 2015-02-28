@@ -41,7 +41,6 @@
 
 (eval-when-compile (require 'cl))
 
-(require 'eww)
 (require 'json)
 (require 'shr)
 (require 'url)
@@ -91,8 +90,9 @@
                           (erase-buffer)
                           (markdown-add-xhtml-header-and-footer title)
                           (shr-render-region (point-min) (point-max))
-                          (eww-mode)
-                          (display-buffer (current-buffer)))))))))
+                          (when (require 'eww nil 'noerror)
+                            (eww-mode)))
+                        (display-buffer (current-buffer))))))))
 
 ;;;###autoload
 (defun gh-md-render-buffer (&optional buffer title)
