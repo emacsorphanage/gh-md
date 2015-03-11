@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24") (markdown-mode "2.0"))
+;; Package-Requires: ((emacs "24"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -45,8 +45,6 @@
 (require 'shr)
 (require 'url)
 
-(require 'markdown-mode)
-
 
 (defgroup gh-md nil
   "Render markdown using the github api."
@@ -58,51 +56,113 @@
   :type 'boolean
   :group 'gh-md)
 
+(defcustom gh-md-css-path "http://sindresorhus.com/github-markdown-css/github-markdown.css"
+  "Path to css used output."
+  :type 'string
+  :group 'gh-md)
+
+(defcustom gh-md-extra-header ""
+  "Extra header used when converting to html."
+  :type 'string
+  :group 'gh-md)
+
 (defvar gh-md-apiurl "https://api.github.com/markdown")
-(defvar gh-md-apiurl-raw "https://api.github.com/markdown/raw")
 (defvar gh-md-buffer-name "*gh-md*")
 
 
-(defun gh-md-construct-json-payload (begin end &optional mode context)
+(defun gh-md--json-payload (begin end &optional mode context)
   "Construct a json payload for the github markdown api."
   (let* ((text (buffer-substring-no-properties begin end))
-         (mode (if gh-md-use-gfm "gfm" (or mode "markdown")))
-         (context (and (string= mode "gfm") context)))
+         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
     (json-encode `((text . ,text)
                    (mode . ,mode)
                    (context . ,context)))))
 
-;;;###autoload
-(defun gh-md-render-region (begin end &optional title)
-  "Show a preview the markdown from a region from BEGIN to END."
-  (interactive "r")
-  (let ((url-request-method "POST")
-        (url-request-data (gh-md-construct-json-payload begin end))
-        (title (or title (format "Markdown Preview (%s)" (buffer-name)))))
-    (url-retrieve gh-md-apiurl
-                  (lambda (&rest _)
-                    (let ((response (with-current-buffer (current-buffer)
-                                      (goto-char (point-min))
-                                      (when (re-search-forward "^$" nil t)
-                                        (buffer-substring (1+ (point)) (point-max))))))
-                      (with-current-buffer (get-buffer-create gh-md-buffer-name)
-                        (let ((inhibit-read-only t))
-                          (erase-buffer)
-                          (insert (decode-coding-string response 'utf-8))
-                          (goto-char (point-min))
-                          (unless (markdown-output-standalone-p)
-                            (markdown-add-xhtml-header-and-footer title))
-                          (shr-render-region (point-min) (point-max))
-                          (when (require 'eww nil 'noerror)
-                            (eww-mode)))
-                        (display-buffer (current-buffer))))))))
+(defun gh-md--generate-html (content &optional title)
+  (mapconcat #'identity
+             `("<!doctype html>"
+               "<html>"
+               "<head>"
+               "<meta charset=\"utf-8\">"
+               "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, minimal-ui\">"
+               ,(and gh-md-css-path (format "<link rel=\"stylesheet\" type=\"text/css\" media=\"all\" href=\"%s\">" gh-md-css-path))
+               ,(and gh-md-extra-header gh-md-extra-header)
+               "<style>"
+               "body {"
+               "  min-width: 200px;"
+               "  max-width: 790px;"
+               "  margin: 0 auto;"
+               "  padding: 30px;}"
+               "</style>"
+               ,(and title (format "<title>%s</title>" title))
+               "<body>"
+               "<article class=\"markdown-body\">"
+               ,content
+               "</article>"
+               "</body>"
+               "</html>")
+             "\n"))
+
+(defun gh-md--export-file-name (&optional buffer)
+  "Generate a export file name from BUFFER."
+  (concat (file-name-sans-extension (or (buffer-file-name buffer)
+                                        (buffer-name buffer)))
+          ".html"))
 
 ;;;###autoload
-(defun gh-md-render-buffer (&optional buffer title)
-  "Render the markdown contents from BUFFER."
+(defalias 'gh-md-render-region #'gh-md-convert-region)
+
+;;;###autoload
+(defun gh-md-convert-region (begin end &optional export)
+  "Show a preview the markdown from a region from BEGIN to END.
+
+EXPORT writes a file."
+  (interactive "r")
+  (let ((url-request-method "POST")
+        (url-request-data (gh-md--json-payload begin end))
+        (title (format "Markdown Preview (%s)" (buffer-name)))
+        (output-buffer (if export
+                           (find-file-noselect (read-from-minibuffer "Export to file: " (gh-md--export-file-name)))
+                         (get-buffer-create gh-md-buffer-name))))
+    (url-retrieve gh-md-apiurl
+                  (lambda (&rest _)
+                    (let* ((response (with-current-buffer (current-buffer)
+                                       (goto-char (point-min))
+                                       (re-search-forward "^$" nil t)
+                                       (buffer-substring (1+ (point)) (point-max))))
+                           (content (decode-coding-string response 'utf-8))
+                           (html (gh-md--generate-html content title)))
+                      (with-current-buffer output-buffer
+                        (erase-buffer)
+                        (insert html)
+                        (cond
+                         (export
+                          (save-buffer))
+                         (t
+                          (shr-render-region (point-min) (point-max))
+                          (when (require 'eww nil 'noerror)
+                            (eww-mode))
+                          (display-buffer (current-buffer))))))))))
+
+;;;###autoload
+(defun gh-md-render-buffer (&optional buffer)
+  "Render the markdown content from BUFFER."
   (interactive)
   (with-current-buffer (or buffer (current-buffer))
-    (gh-md-render-region (point-min) (point-max) title)))
+    (gh-md-convert-region (point-min) (point-max))))
+
+;;;###autoload
+(defun gh-md-export-region (begin end)
+  "Export to a file the markdown content from region BEGIN to END."
+  (interactive "r")
+  (gh-md-convert-region begin end t))
+
+;;;###autoload
+(defun gh-md-export-buffer (&optional buffer)
+  "Export to a file the markdown content from BUFFER."
+  (interactive)
+  (with-current-buffer (or buffer (current-buffer))
+    (gh-md-convert-region (point-min) (point-max) t)))
 
 (provide 'gh-md)
 
