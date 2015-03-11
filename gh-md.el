@@ -133,16 +133,17 @@ EXPORT writes a file."
                            (content (decode-coding-string response 'utf-8))
                            (html (gh-md--generate-html content title)))
                       (with-current-buffer output-buffer
-                        (erase-buffer)
-                        (insert html)
-                        (cond
-                         (export
-                          (save-buffer))
-                         (t
-                          (shr-render-region (point-min) (point-max))
-                          (when (require 'eww nil 'noerror)
-                            (eww-mode))
-                          (display-buffer (current-buffer))))))))))
+                        (let ((inhibit-read-only t))
+                          (erase-buffer)
+                          (insert html)
+                          (cond
+                           (export
+                            (save-buffer))
+                           (t
+                            (shr-render-region (point-min) (point-max))
+                            (when (require 'eww nil 'noerror)
+                              (eww-mode))
+                            (display-buffer (current-buffer)))))))))))
 
 ;;;###autoload
 (defun gh-md-render-buffer (&optional buffer)
