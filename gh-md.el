@@ -145,6 +145,7 @@ EXPORT writes a file."
                             (shr-render-region (point-min) (point-max))
                             (when (require 'eww nil 'noerror)
                               (eww-mode))
+                            (goto-char (point-min))
                             (display-buffer (current-buffer)))))))))))
 
 ;;;###autoload
