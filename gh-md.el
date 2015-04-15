@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24"))
+;; Package-Requires: ((emacs "24") (pkg-info "0.4"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -45,6 +45,7 @@
 (require 'shr)
 (require 'url)
 
+(declare-function pkg-info-version-info "pkg-info" (library))
 
 (defgroup gh-md nil
   "Render markdown using the github api."
@@ -120,6 +121,7 @@ EXPORT writes a file."
   (interactive "r")
   (let ((url-request-method "POST")
         (url-request-data (gh-md--json-payload begin end))
+        (url-request-extra-headers `(("User-Agent" . ,(format "gh-md.el/%s" (pkg-info-version-info 'gh-md)))))
         (title (format "Markdown Preview (%s)" (buffer-name)))
         (output-buffer (if export
                            (find-file-noselect (read-from-minibuffer "Export to file: " (gh-md--export-file-name)))
