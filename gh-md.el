@@ -80,8 +80,8 @@
                    (mode . ,mode)
                    (context . ,context)))))
 
-(defun gh-md--generate-html (content &optional title)
-  "Generate base html with CONTENT and TITLE."
+(defun gh-md--generate-html (content)
+  "Generate base html with CONTENT."
   (mapconcat #'identity
              `("<!doctype html>"
                "<html>"
@@ -97,7 +97,6 @@
                "  margin: 0 auto;"
                "  padding: 30px;}"
                "</style>"
-               ,(and title (format "<title>%s</title>" title))
                "<body>"
                "<div class=\"markdown-body\">"
                ,content
@@ -112,14 +111,14 @@
                                         (buffer-name buffer)))
           ".html"))
 
-(defun gh-md--callback (status &optional output-buffer export title)
+(defun gh-md--callback (status &optional output-buffer export)
   (unless (plist-get status :error)
     (let* ((response (with-current-buffer (current-buffer)
                        (goto-char (point-min))
                        (re-search-forward "^$" nil t)
                        (buffer-substring (1+ (point)) (point-max))))
            (content (decode-coding-string response 'utf-8))
-           (html (gh-md--generate-html content title)))
+           (html (gh-md--generate-html content)))
       (with-current-buffer output-buffer
         (let ((inhibit-read-only t))
           (erase-buffer)
@@ -146,11 +145,10 @@ EXPORT writes a file."
   (let ((url-request-method "POST")
         (url-user-agent (format "User-Agent: gh-md.el/%s\r\n" (pkg-info-version-info 'gh-md)))
         (url-request-data (gh-md--json-payload begin end))
-        (title (format "Markdown Preview (%s)" (buffer-name)))
         (output-buffer (if export
                            (find-file-noselect (read-string "Export to file: " (gh-md--export-file-name)))
                          (get-buffer-create gh-md-buffer-name))))
-    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export title))))
+    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export))))
 
 ;;;###autoload
 (defun gh-md-render-buffer (&optional buffer)
