@@ -1,6 +1,6 @@
 ;;; gh-md.el --- Render markdown using the github api  -*- lexical-binding: t; -*-
 
-;; Copyright © 2014 Mario Rodas <marsam@users.noreply.github.com>
+;; Copyright (C) 2014 Mario Rodas <marsam@users.noreply.github.com>
 
 ;; Author: Mario Rodas <marsam@users.noreply.github.com>
 ;; URL: https://github.com/emacs-pe/gh-md.el
@@ -43,7 +43,8 @@
 
 (require 'json)
 (require 'shr)
-(require 'url)
+(require 'url-http)
+(require 'eww nil 'noerror)
 
 (declare-function pkg-info-version-info "pkg-info" (library))
 
@@ -73,13 +74,14 @@
 
 (defun gh-md--json-payload (begin end &optional mode context)
   "Construct a json payload for the github markdown api."
-  (let* ((text (buffer-substring-no-properties begin end))
-         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
+  (let ((text (encode-coding-string (buffer-substring-no-properties begin end) 'utf-8))
+        (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
     (json-encode `((text . ,text)
                    (mode . ,mode)
                    (context . ,context)))))
 
 (defun gh-md--generate-html (content &optional title)
+  "Generate base html with CONTENT and TITLE."
   (mapconcat #'identity
              `("<!doctype html>"
                "<html>"
@@ -97,9 +99,9 @@
                "</style>"
                ,(and title (format "<title>%s</title>" title))
                "<body>"
-               "<article class=\"markdown-body\">"
+               "<div class=\"markdown-body\">"
                ,content
-               "</article>"
+               "</div>"
                "</body>"
                "</html>")
              "\n"))
@@ -109,6 +111,28 @@
   (concat (file-name-sans-extension (or (buffer-file-name buffer)
                                         (buffer-name buffer)))
           ".html"))
+
+(defun gh-md--callback (status &optional output-buffer export title)
+  (unless (plist-get status :error)
+    (let* ((response (with-current-buffer (current-buffer)
+                       (goto-char (point-min))
+                       (re-search-forward "^$" nil t)
+                       (buffer-substring (1+ (point)) (point-max))))
+           (content (decode-coding-string response 'utf-8))
+           (html (gh-md--generate-html content title)))
+      (with-current-buffer output-buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert html)
+          (cond
+           (export
+            (save-buffer))
+           (t
+            (shr-render-region (point-min) (point-max))
+            (when (fboundp 'eww-mode)
+              (eww-mode))
+            (goto-char (point-min))
+            (display-buffer (current-buffer)))))))))
 
 ;;;###autoload
 (defalias 'gh-md-render-region #'gh-md-convert-region)
@@ -120,33 +144,13 @@
 EXPORT writes a file."
   (interactive "r")
   (let ((url-request-method "POST")
+        (url-user-agent (format "User-Agent: gh-md.el/%s\r\n" (pkg-info-version-info 'gh-md)))
         (url-request-data (gh-md--json-payload begin end))
-        (url-request-extra-headers `(("User-Agent" . ,(format "gh-md.el/%s" (pkg-info-version-info 'gh-md)))))
         (title (format "Markdown Preview (%s)" (buffer-name)))
         (output-buffer (if export
-                           (find-file-noselect (read-from-minibuffer "Export to file: " (gh-md--export-file-name)))
+                           (find-file-noselect (read-string "Export to file: " (gh-md--export-file-name)))
                          (get-buffer-create gh-md-buffer-name))))
-    (url-retrieve gh-md-apiurl
-                  (lambda (&rest _)
-                    (let* ((response (with-current-buffer (current-buffer)
-                                       (goto-char (point-min))
-                                       (re-search-forward "^$" nil t)
-                                       (buffer-substring (1+ (point)) (point-max))))
-                           (content (decode-coding-string response 'utf-8))
-                           (html (gh-md--generate-html content title)))
-                      (with-current-buffer output-buffer
-                        (let ((inhibit-read-only t))
-                          (erase-buffer)
-                          (insert html)
-                          (cond
-                           (export
-                            (save-buffer))
-                           (t
-                            (shr-render-region (point-min) (point-max))
-                            (when (require 'eww nil 'noerror)
-                              (eww-mode))
-                            (goto-char (point-min))
-                            (display-buffer (current-buffer)))))))))))
+    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export title))))
 
 ;;;###autoload
 (defun gh-md-render-buffer (&optional buffer)
