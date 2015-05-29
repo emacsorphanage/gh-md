@@ -74,7 +74,7 @@
 
 (defun gh-md--json-payload (begin end &optional mode context)
   "Construct a json payload for the github markdown api."
-  (let ((text (encode-coding-string (buffer-substring-no-properties begin end) 'utf-8))
+  (let ((text (buffer-substring-no-properties begin end))
         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
     (json-encode `((text . ,text)
                    (mode . ,mode)
@@ -148,7 +148,7 @@ EXPORT writes a file."
         (output-buffer (if export
                            (find-file-noselect (read-string "Export to file: " (gh-md--export-file-name)))
                          (get-buffer-create gh-md-buffer-name))))
-    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export))))
+    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export) t)))
 
 ;;;###autoload
 (defun gh-md-render-buffer (&optional buffer)
