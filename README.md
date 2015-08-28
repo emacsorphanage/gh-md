@@ -1,4 +1,4 @@
-# gh-md - Render markdown using the github api  -*- lexical-binding: t; -*-
+# gh-md - Render markdown using the Github api
 
 *Author:* Mario Rodas <marsam@users.noreply.github.com><br>
 *Version:* 0.1<br>

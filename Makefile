@@ -1,6 +1,6 @@
 CASK  ?= cask
 WGET  ?= wget
-EMACS ?= emacs
+EMACS  = emacs
 
 EMACSFLAGS =
 EMACSBATCH = $(EMACS) --batch -Q $(EMACSFLAGS)
@@ -12,7 +12,7 @@ PKGDIR := $(shell EMACS=$(EMACS) $(CASK) package-directory)
 SRCS = gh-md.el
 OBJS = $(SRCS:.el=.elc)
 
-.PHONY: all build package test clean
+.PHONY: all build package clean
 
 all: build README.md
 
@@ -21,9 +21,6 @@ build: $(PKGDIR)
 
 package:
 	$(CASK) package
-
-test:
-	$(CASK) exec $(EMACSBATCH) -L . -l gh-md-test.el --eval "(ert t)"
 
 clean:
 	$(RM) $(OBJS)

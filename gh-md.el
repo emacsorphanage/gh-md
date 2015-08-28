@@ -1,4 +1,4 @@
-;;; gh-md.el --- Render markdown using the github api  -*- lexical-binding: t; -*-
+;;; gh-md.el --- Render markdown using the Github api  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2014 Mario Rodas <marsam@users.noreply.github.com>
 
@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24") (pkg-info "0.4"))
+;; Package-Requires: ((emacs "24"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -39,14 +39,28 @@
 ;; ![gh-md.el screenshot](screenshot.png)
 
 ;;; Code:
+(eval-when-compile
+  (require 'url-http)
+  (defvar url-http-end-of-headers))
 
-
 (require 'json)
 (require 'shr)
-(require 'url-http)
 (require 'eww nil 'noerror)
 
-(declare-function pkg-info-version-info "pkg-info" (library))
+;; `shr-render-region' for Emacs 24.3 and below.
+(eval-and-compile
+  (unless (fboundp 'shr-render-region)
+    (defun shr-render-region (begin end &optional buffer)
+      "Display the HTML rendering of the region between BEGIN and END."
+      (interactive "r")
+      (unless (fboundp 'libxml-parse-html-region)
+        (error "This function requires Emacs to be compiled with libxml2"))
+      (with-current-buffer (or buffer (current-buffer))
+        (let ((dom (libxml-parse-html-region begin end)))
+          (delete-region begin end)
+          (goto-char begin)
+          (shr-insert-document dom))))))
+
 
 (defgroup gh-md nil
   "Render markdown using the github api."
@@ -56,6 +70,12 @@
 (defcustom gh-md-use-gfm nil
   "Render using Github Flavored Markdown (GFM) by default ."
   :type 'boolean
+  :group 'gh-md)
+
+(defcustom gh-md-context nil
+  "The repository context used to render markdown."
+  :type 'string
+  :safe 'stringp
   :group 'gh-md)
 
 (defcustom gh-md-css-path "http://sindresorhus.com/github-markdown-css/github-markdown.css"
@@ -72,17 +92,19 @@
 (defvar gh-md-buffer-name "*gh-md*")
 
 
-(defun gh-md--json-payload (begin end &optional mode context)
-  "Construct a json payload for the github markdown api."
+(defun gh-md--json-payload (begin end &optional mode)
+  "Build a json payload for the Github markdown api.
+
+From BEGIN to END points, using a rendering MODE."
   (let ((text (buffer-substring-no-properties begin end))
         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
     (json-encode `((text . ,text)
                    (mode . ,mode)
-                   (context . ,context)))))
+                   (context . ,gh-md-context)))))
 
 (defun gh-md--generate-html (content)
   "Generate base html with CONTENT."
-  (mapconcat #'identity
+  (mapconcat 'identity
              `("<!doctype html>"
                "<html>"
                "<head>"
@@ -112,10 +134,13 @@
           ".html"))
 
 (defun gh-md--callback (status &optional output-buffer export)
-  (unless (plist-get status :error)
+  "Callback used to render the response.
+
+Checks if STATUS is not erred OUTPUT-BUFFER and EXPORT."
+  (if (plist-get status :error)
+      (error (plist-get status :error))
     (let* ((response (with-current-buffer (current-buffer)
-                       (goto-char (point-min))
-                       (re-search-forward "^$" nil t)
+                       (goto-char url-http-end-of-headers)
                        (buffer-substring (1+ (point)) (point-max))))
            (content (decode-coding-string response 'utf-8))
            (html (gh-md--generate-html content)))
@@ -123,15 +148,12 @@
         (let ((inhibit-read-only t))
           (erase-buffer)
           (insert html)
-          (cond
-           (export
-            (save-buffer))
-           (t
+          (if export
+              (save-buffer)
             (shr-render-region (point-min) (point-max))
-            (when (fboundp 'eww-mode)
-              (eww-mode))
+            (and (fboundp 'eww-mode) (eww-mode))
             (goto-char (point-min))
-            (display-buffer (current-buffer)))))))))
+            (display-buffer (current-buffer))))))))
 
 ;;;###autoload
 (defalias 'gh-md-render-region #'gh-md-convert-region)
@@ -143,32 +165,29 @@
 EXPORT writes a file."
   (interactive "r")
   (let ((url-request-method "POST")
-        (url-user-agent (format "User-Agent: gh-md.el/%s\r\n" (pkg-info-version-info 'gh-md)))
         (url-request-data (gh-md--json-payload begin end))
         (output-buffer (if export
                            (find-file-noselect (read-string "Export to file: " (gh-md--export-file-name)))
                          (get-buffer-create gh-md-buffer-name))))
-    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export) t)))
+    (url-retrieve gh-md-apiurl #'gh-md--callback (list output-buffer export) 'silent)))
 
 ;;;###autoload
-(defun gh-md-render-buffer (&optional buffer)
+(defun gh-md-render-buffer ()
   "Render the markdown content from BUFFER."
   (interactive)
-  (with-current-buffer (or buffer (current-buffer))
-    (gh-md-convert-region (point-min) (point-max))))
+  (gh-md-convert-region (point-min) (point-max)))
 
 ;;;###autoload
 (defun gh-md-export-region (begin end)
   "Export to a file the markdown content from region BEGIN to END."
   (interactive "r")
-  (gh-md-convert-region begin end t))
+  (gh-md-convert-region begin end 'export))
 
 ;;;###autoload
-(defun gh-md-export-buffer (&optional buffer)
+(defun gh-md-export-buffer ()
   "Export to a file the markdown content from BUFFER."
   (interactive)
-  (with-current-buffer (or buffer (current-buffer))
-    (gh-md-convert-region (point-min) (point-max) t)))
+  (gh-md-convert-region (point-min) (point-max) 'export))
 
 (provide 'gh-md)
 
