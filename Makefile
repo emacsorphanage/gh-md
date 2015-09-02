@@ -9,8 +9,8 @@ export EMACS
 
 PKGDIR := $(shell EMACS=$(EMACS) $(CASK) package-directory)
 
-SRCS = gh-md.el
-OBJS = $(SRCS:.el=.elc)
+SRCS := $(shell EMACS=$(EMACS) $(CASK) files)
+OBJS  = $(SRCS:.el=.elc)
 
 .PHONY: all build package clean
 

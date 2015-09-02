@@ -78,14 +78,16 @@
   :safe 'stringp
   :group 'gh-md)
 
-(defcustom gh-md-css-path "http://sindresorhus.com/github-markdown-css/github-markdown.css"
+(defcustom gh-md-css-path nil
   "Path to css used output."
   :type 'string
+  :safe 'stringp
   :group 'gh-md)
 
-(defcustom gh-md-extra-header ""
+(defcustom gh-md-extra-header nil
   "Extra header used when converting to html."
   :type 'string
+  :safe 'stringp
   :group 'gh-md)
 
 (defvar gh-md-apiurl "https://api.github.com/markdown")
@@ -117,8 +119,10 @@ From BEGIN to END points, using a rendering MODE."
                "  min-width: 200px;"
                "  max-width: 790px;"
                "  margin: 0 auto;"
-               "  padding: 30px;}"
+               "  padding: 30px;"
+               "}"
                "</style>"
+               "</head>"
                "<body>"
                "<div class=\"markdown-body\">"
                ,content
@@ -138,10 +142,10 @@ From BEGIN to END points, using a rendering MODE."
 
 Checks if STATUS is not erred OUTPUT-BUFFER and EXPORT."
   (if (plist-get status :error)
-      (error (plist-get status :error))
+      (signal (car (plist-get status :error)) (cdr (plist-get status :error)))
     (let* ((response (with-current-buffer (current-buffer)
                        (goto-char url-http-end-of-headers)
-                       (buffer-substring (1+ (point)) (point-max))))
+                       (buffer-substring (point) (point-max))))
            (content (decode-coding-string response 'utf-8))
            (html (gh-md--generate-html content)))
       (with-current-buffer output-buffer
