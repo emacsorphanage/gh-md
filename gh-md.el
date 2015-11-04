@@ -142,7 +142,7 @@ From BEGIN to END points, using a rendering MODE."
 
 Checks if STATUS is not erred OUTPUT-BUFFER and EXPORT."
   (if (plist-get status :error)
-      (signal (car (plist-get status :error)) (cdr (plist-get status :error)))
+      (message (error-message-string (plist-get status :error)))
     (let* ((response (with-current-buffer (current-buffer)
                        (goto-char url-http-end-of-headers)
                        (buffer-substring (point) (point-max))))
