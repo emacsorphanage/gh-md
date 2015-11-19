@@ -49,7 +49,7 @@
 (require 'eww nil 'noerror)
 
 ;; `shr-render-region' for Emacs 24.3 and below.
-(eval-and-compile\d 
+(eval-and-compile
   (unless (fboundp 'shr-render-region)
     (defun shr-render-region (begin end &optional buffer)
       "Display the HTML rendering of the region between BEGIN and END."
@@ -61,7 +61,6 @@
           (delete-region begin end)
           (goto-char begin)
           (shr-insert-document dom))))))
-
 
 (defgroup gh-md nil
   "Render markdown using the github api."
@@ -100,7 +99,8 @@
 From BEGIN to END points, using a rendering MODE."
   (let ((text (buffer-substring-no-properties begin end))
         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
-
+    ;; encode payload to fix 400 response from github if
+    ;; text contains unicode characters - nikita-d.
     (encode-coding-string (json-encode `((text . ,text)
                                          (mode . ,mode)
                                          (context . ,gh-md-context))) 'utf-8)))
@@ -143,7 +143,7 @@ From BEGIN to END points, using a rendering MODE."
 
 Checks if STATUS is not erred OUTPUT-BUFFER and EXPORT."
   (if (plist-get status :error)
-      (message "%s" status)
+      (message (error-message-string (plist-get status :error)))
     (let* ((response (with-current-buffer (current-buffer)
                        (goto-char url-http-end-of-headers)
                        (buffer-substring (point) (point-max))))
