@@ -5,7 +5,7 @@
 ;; Author: Mario Rodas <marsam@users.noreply.github.com>
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "24"))
 
 ;; This file is NOT part of GNU Emacs.
@@ -61,7 +61,6 @@
           (goto-char begin)
           (shr-insert-document dom))))))
 
-
 (defgroup gh-md nil
   "Render markdown using the github api."
   :prefix "gh-md-"
@@ -93,16 +92,17 @@
 (defvar gh-md-apiurl "https://api.github.com/markdown")
 (defvar gh-md-buffer-name "*gh-md*")
 
-
 (defun gh-md--json-payload (begin end &optional mode)
   "Build a json payload for the Github markdown api.
 
 From BEGIN to END points, using a rendering MODE."
   (let ((text (buffer-substring-no-properties begin end))
         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
-    (json-encode `((text . ,text)
-                   (mode . ,mode)
-                   (context . ,gh-md-context)))))
+    ;; encode payload to fix 400 response from github if
+    ;; text contains unicode characters - nikita-d.
+    (encode-coding-string (json-encode `((text . ,text)
+                                         (mode . ,mode)
+                                         (context . ,gh-md-context))) 'utf-8)))
 
 (defun gh-md--generate-html (content)
   "Generate base html with CONTENT."
