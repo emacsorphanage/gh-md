@@ -4,6 +4,7 @@
 
 ;; Author: Mario Rodas <marsam@users.noreply.github.com>
 ;; URL: https://github.com/emacs-pe/gh-md.el
+;; Package-Version: 20151103.2026
 ;; Keywords: convenience
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "24"))
@@ -48,7 +49,7 @@
 (require 'eww nil 'noerror)
 
 ;; `shr-render-region' for Emacs 24.3 and below.
-(eval-and-compile
+(eval-and-compile\d 
   (unless (fboundp 'shr-render-region)
     (defun shr-render-region (begin end &optional buffer)
       "Display the HTML rendering of the region between BEGIN and END."
@@ -61,7 +62,7 @@
           (goto-char begin)
           (shr-insert-document dom))))))
 
-
+
 (defgroup gh-md nil
   "Render markdown using the github api."
   :prefix "gh-md-"
@@ -93,16 +94,16 @@
 (defvar gh-md-apiurl "https://api.github.com/markdown")
 (defvar gh-md-buffer-name "*gh-md*")
 
-
 (defun gh-md--json-payload (begin end &optional mode)
   "Build a json payload for the Github markdown api.
 
 From BEGIN to END points, using a rendering MODE."
   (let ((text (buffer-substring-no-properties begin end))
         (mode (if gh-md-use-gfm "gfm" (or mode "markdown"))))
-    (json-encode `((text . ,text)
-                   (mode . ,mode)
-                   (context . ,gh-md-context)))))
+
+    (encode-coding-string (json-encode `((text . ,text)
+                                         (mode . ,mode)
+                                         (context . ,gh-md-context))) 'utf-8)))
 
 (defun gh-md--generate-html (content)
   "Generate base html with CONTENT."
@@ -142,7 +143,7 @@ From BEGIN to END points, using a rendering MODE."
 
 Checks if STATUS is not erred OUTPUT-BUFFER and EXPORT."
   (if (plist-get status :error)
-      (message (error-message-string (plist-get status :error)))
+      (message "%s" status)
     (let* ((response (with-current-buffer (current-buffer)
                        (goto-char url-http-end-of-headers)
                        (buffer-substring (point) (point-max))))
