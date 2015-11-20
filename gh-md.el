@@ -4,9 +4,9 @@
 
 ;; Author: Mario Rodas <marsam@users.noreply.github.com>
 ;; URL: https://github.com/emacs-pe/gh-md.el
-;; Package-Version: 20151103.2026
+;; Package-Version: 20151120.2026
 ;; Keywords: convenience
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "24"))
 
 ;; This file is NOT part of GNU Emacs.
