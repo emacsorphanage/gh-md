@@ -3,9 +3,13 @@ env:
   - EMACS=emacs24
   - EMACS=emacs-snapshot
 before_install:
-  - if [ "$EMACS" = 'emacs-snapshot' ]; then sudo add-apt-repository -y ppa:ubuntu-elisp/ppa && sudo apt-get update -qq && sudo apt-get install -qq emacs-snapshot-el emacs-snapshot-gtk emacs-snapshot; fi
-  - if [ "$EMACS" = 'emacs24' ]; then sudo add-apt-repository -y ppa:ubuntu-elisp/ppa && sudo apt-get update -qq && sudo apt-get install -qq emacs24 emacs24-el emacs24-common-non-dfsg; fi
+  - sudo add-apt-repository -y ppa:cassou/emacs
+  - sudo add-apt-repository -y ppa:ubuntu-elisp/ppa
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq -yy ${EMACS}
   - curl -fsSkL https://raw.github.com/cask/cask/master/go | python
   - export PATH="${HOME}/.cask/bin:$PATH"
-script:
+install:
   - make build package
+script:
+  - make test
