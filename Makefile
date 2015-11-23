@@ -2,8 +2,8 @@ CASK  ?= cask
 WGET  ?= wget
 EMACS  = emacs
 
-EMACSFLAGS = 
-EMACSBATCH = $(EMACS) --batch -Q $(EMACSFLAGS) --eval="(setq package-check-signature 'nil)"
+EMACSFLAGS =
+EMACSBATCH = $(EMACS) --batch -Q $(EMACSFLAGS)
 
 export EMACS
 
