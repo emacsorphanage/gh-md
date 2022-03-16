@@ -6,7 +6,7 @@
 ;; URL: https://github.com/emacs-pe/gh-md.el
 ;; Keywords: convenience
 ;; Version: 0.1.1
-;; Package-Requires: ((emacs "24"))
+;; Package-Requires: ((emacs "24.3"))
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -37,6 +37,17 @@
 ;; preview of the markdown content of a buffer.
 ;;
 ;; ![gh-md.el screenshot](screenshot.png)
+;;
+;; Note:
+;;
+;; If you get an error on the **Messages** buffer similar to
+;; `peculiar error: "connect" host, "api.github.com" :service,443`,
+;; then you might need to run this on your terminal:
+;;
+;; ```
+;; git config --global --unset http.proxy
+;; git config --global --unset https.proxy
+;; ```
 
 ;;; Code:
 (eval-when-compile
